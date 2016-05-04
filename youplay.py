@@ -1,106 +1,67 @@
 #!/usr/bin/env python
 import settings
-import tornado.web
 import tornado.httpserver
-import os,json,subprocess
 import tornado.ioloop
-import tornado.web,re
-import sqlite3 as lite
-import datetime
+import tornado.web
+
+import re,os,subprocess
+
 def Setup():
     pass
-def Download(playlist):
-    args = [settings.YOUTUBE_DL, "-x", "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "https://www.youtube.com/playlist?list="+playlist, "-o", "'songs/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s'"]
+
+def UpdateYDL():
+
+    print "Checking for youtube-dl updates"
+    args = [settings.YOUTUBE_DL, "-U"]
     subprocess.call(args)
-class DownloadByPlaylist(tornado.web.RequestHandler):
+
+def DownloadPL(playlist):
+    if len(settings.FFMPEG) > 0:
+        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--ffmpeg-location", settings.FFMPEG, "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "https://www.youtube.com/playlist?list="+playlist, "-o", "Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"]
+    else:
+        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "https://www.youtube.com/playlist?list="+playlist, "-o", "Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"]
+    subprocess.call(args)
+
+def DownloadVD(video):
+    if len(settings.FFMPEG) > 0:
+        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--ffmpeg-location", settings.FFMPEG, "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "-o", "Music/%(title)s.%(ext)s", video]
+    else:
+        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "-o", "Music/%(title)s.%(ext)s", video]
+    subprocess.call(args)
+
+class DownloadPlaylist(tornado.web.RequestHandler):
+
     def get(self,playlist_id):
         playlist = playlist_id if playlist_id else ''
-        if len(playlist) > 1:
-            DownloadByPlaylist(playlist)
+        if len(playlist) > 1 and re.match(VIDEO_REGEX,playlist):
+            DownloadPL(playlist)
+            self.write("Playlist Download Completed")
+        else:
+            self.write("Invalid Request")
 
-class DeleteByIPHandler(tornado.web.RequestHandler):
-    def get(self,pp):
-        ip = pp if pp else ''
-        con = lite.connect('db.db')
-        with con:
-            cur = con.cursor()
-            cur.execute("DELETE FROM SSRF WHERE ip =?",(ip,))
-            con.commit()
+class DownloadFile(tornado.web.RequestHandler):
 
-class XXECheckHandler(tornado.web.RequestHandler):
-    def get(self,pp):
-        xxe = pp if pp else ''
-        m=re.match('[0-9a-f]{32}',xxe)
-        if m:
-            con = lite.connect('db.db')
-            with con:
-                cur = con.cursor()
-                cur.execute("SELECT count(*) FROM XXE WHERE payload=?",(xxe,))
-                x=cur.fetchone()[0]
-                if x==0:
-                    self.write('{"status": "no"}')
-                else:
-                    self.write('{"status": "yes"}')
+    def get(self,video_id):
+        video = video_id if video_id else ''
+        if len(video) > 1 and re.match(VIDEO_REGEX,video):
+            DownloadVD(video)
+            self.write("MP3 Download Complete")
+        else:
+            self.write("Invalid Request")
 
-class SSRFCheckHandler(tornado.web.RequestHandler):
-    def get(self,pp):
-        ip = pp if pp else ''
-        con = lite.connect('db.db')
-        with con:
-            cur = con.cursor()
-            if ip == 'ts':
-                #based on timestamp
-                tms = datetime.datetime.now() - datetime.timedelta(seconds=30)
-                cur.execute("SELECT count(*) FROM SSRF WHERE ts >=?",(tms,))
-            else:
-                #based on ip
-                cur.execute("SELECT count(*) FROM SSRF WHERE ip=?",(ip,))
-            x=cur.fetchone()[0]
-            if x==0:
-                self.write('{"count": 0}')
-            else:
-                self.write('{"count": '+str(x)+'}')
 
-class XXE_SSRFHandler(tornado.web.RequestHandler):
-    def get(self):
-        #SSRF and XXE count based
-        if self.request.uri == "/":
-            self.remote_ip = self.request.headers.get('X-Forwarded-For', self.request.headers.get('X-Real-Ip', self.request.remote_ip))
-            tms=datetime.datetime.now()
-            con0 = lite.connect('db.db')
-            with con0:
-                cur = con0.cursor()
-                cur.execute("INSERT INTO SSRF VALUES(?,?)",(self.remote_ip,tms))
-                self.write("ok")
-        #XXE and SSRF hash based url
-        tms=datetime.datetime.now()
-        payload = (str(self.request.uri)[:33]).replace("/","")
-        m=re.match('[0-9a-f]{32}',payload)
-        if m:
-            con = lite.connect('db.db')
-            with con:
-                cur = con.cursor()
-                cur.execute("INSERT INTO XXE VALUES(?,?)",(payload,tms))
-        self.write(payload)
 
 if __name__ == "__main__":
-    Setup()
+    VIDEO_REGEX = "^([a-zA-Z0-9\_\-]+)$"
     tornado.web.Application([
-        (r"/ip/(?P<pp>[^\/]+)", SSRFCheckHandler),
-        (r"/delete/(?P<pp>[^\/]+)", DeleteByIPHandler),
-        (r"/md5/(?P<pp>[^\/]+)", XXECheckHandler),
-        (r"/.*", XXE_SSRFHandler),
+        (r"/playlist/(?P<playlist_id>[^\/]+)", DownloadPlaylist),
+        (r"/video/(?P<video_id>[^\/]+)",DownloadFile),
+        #(r"/.*", DownloadByPlaylist),
         ]).listen(8080)
-    tornado.ioloop.PeriodicCallback(CleanDB, 300000).start() #15 mins in milliseconds
+    #test update with a lower time period
+    tornado.ioloop.PeriodicCallback(UpdateYDL, 300000).start() #15 mins in milliseconds
     tornado.ioloop.IOLoop.instance().start()
-    '''
-    URI
-    1. XXE and SSRF - http://127.0.0.1:8080/<md5>
-       Check - http://127.0.0.1:8080/md5/<md5>
 
-    2. SSRF and XXE http://127.0.0.1:8080
-       Check - http://127.0.0.1:8080/ip/<ip>   by ip
-               http://127.0.0.1:8080/ip/ts     by timestamp
-    3. Delete by IP 
-               http://127.0.0.1:8080/delete/<ip>
+    '''
+    http://localhost:8080/playlist/PLX3EwmWe0cS9URO4KPot3LcL4tgoGZaQt
     '''

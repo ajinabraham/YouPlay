@@ -1,8 +1,14 @@
 import os
-dirname = os.path.dirname(__file__)
+BASE = os.path.dirname(os.path.realpath(__file__))
 
-STATIC_PATH = os.path.join(dirname, 'static')
-TEMPLATE_PATH = os.path.join(dirname, 'templates')
+STATIC_PATH = os.path.join(BASE, 'static')
+TEMPLATE_PATH = os.path.join(BASE, 'templates')
 
-YOUTUBE_DL='youtube-dl'
-DOWNLOAD_DIR = os
+
+PLAYLIST_DIR = os.path.join(BASE, "Playlist/")
+MUSIC_DIR = os.path.join(BASE, "Music/")
+
+#Path to Binaries
+
+YOUTUBE_DL = 'youtube-dl'
+FFMPEG = ''

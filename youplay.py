@@ -17,9 +17,9 @@ def UpdateYDL():
 
 def DownloadPL(playlist):
     if len(settings.FFMPEG) > 0:
-        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--ffmpeg-location", settings.FFMPEG, "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "https://www.youtube.com/playlist?list="+playlist, "-o", "Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"]
+        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--ffmpeg-location", settings.FFMPEG, "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "https://www.youtube.com/playlist?list="+playlist, "-o", "Music/Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"]
     else:
-        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "https://www.youtube.com/playlist?list="+playlist, "-o", "Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"]
+        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "https://www.youtube.com/playlist?list="+playlist, "-o", "Music/Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"]
     subprocess.call(args)
 
 def DownloadVD(video):
@@ -56,7 +56,6 @@ if __name__ == "__main__":
     tornado.web.Application([
         (r"/playlist/(?P<playlist_id>[^\/]+)", DownloadPlaylist),
         (r"/video/(?P<video_id>[^\/]+)",DownloadFile),
-        #(r"/.*", DownloadByPlaylist),
         ]).listen(8080)
     #test update with a lower time period
     tornado.ioloop.PeriodicCallback(UpdateYDL, 300000).start() #15 mins in milliseconds
@@ -64,4 +63,5 @@ if __name__ == "__main__":
 
     '''
     http://localhost:8080/playlist/PLX3EwmWe0cS9URO4KPot3LcL4tgoGZaQt
+    http://localhost:8080/video/f4kqIruQcvQ
     '''

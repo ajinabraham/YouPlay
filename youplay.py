@@ -1,64 +1,125 @@
 #!/usr/bin/env python
-import settings
 import tornado.httpserver
 import tornado.ioloop
 import tornado.web
 
-import re,os,subprocess
+import os
+import re
+import subprocess
+import settings
 
-def Setup():
-    pass
 
-def UpdateYDL():
+def update_youtube_dl():
+    """Update Youtube -DL"""
+    try:
+        print "Checking for youtube-dl updates"
+        youtube_dl = os.path.join(settings.BASE, "youtube-dl")
+        args = [youtube_dl,
+                "-U"
+               ]
+        subprocess.call(args)
+    except Exception as exp:
+        print "\n[ERROR] ", exp
 
-    print "Checking for youtube-dl updates"
-    args = [settings.YOUTUBE_DL, "-U"]
-    subprocess.call(args)
+def download_playlist(playlist):
+    """Download YouTube Playlist into MP3"""
+    try:
+        if len(settings.FFMPEG) > 0:
+            youtube_dl = os.path.join(settings.BASE, "youtube-dl")
+            args = [youtube_dl,
+                    "--no-post-overwrites",
+                    "-x",
+                    "--ffmpeg-location",
+                    settings.FFMPEG,
+                    "--prefer-ffmpeg",
+                    "--audio-format",
+                    "mp3",
+                    "--audio-quality",
+                    "0",
+                    "https://www.youtube.com/playlist?list="+playlist,
+                    "-o",
+                    "Music/Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"
+                   ]
+        else:
+            args = [youtube_dl,
+                    "--no-post-overwrites",
+                    "-x", "--prefer-ffmpeg",
+                    "--audio-format", "mp3",
+                    "--audio-quality",
+                    "0",
+                    "https://www.youtube.com/playlist?list="+playlist,
+                    "-o",
+                    "Music/Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"
+                   ]
+        subprocess.call(args)
+    except Exception as exp:
+        print "\n[ERROR] ", exp
 
-def DownloadPL(playlist):
-    if len(settings.FFMPEG) > 0:
-        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--ffmpeg-location", settings.FFMPEG, "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "https://www.youtube.com/playlist?list="+playlist, "-o", "Music/Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"]
-    else:
-        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "https://www.youtube.com/playlist?list="+playlist, "-o", "Music/Playlist/%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s"]
-    subprocess.call(args)
-
-def DownloadVD(video):
-    if len(settings.FFMPEG) > 0:
-        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--ffmpeg-location", settings.FFMPEG, "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "-o", "Music/%(title)s.%(ext)s", video]
-    else:
-        args = [settings.YOUTUBE_DL, "--no-post-overwrites", "-x", "--prefer-ffmpeg", "--audio-format", "mp3", "--audio-quality", "0", "-o", "Music/%(title)s.%(ext)s", video]
-    subprocess.call(args)
+def download_mp3(video):
+    """Download YouTube Video to MP3"""
+    try:
+        youtube_dl = os.path.join(settings.BASE, "youtube-dl")
+        if len(settings.FFMPEG) > 0:
+            args = [youtube_dl,
+                    "--no-post-overwrites",
+                    "-x",
+                    "--ffmpeg-location",
+                    settings.FFMPEG,
+                    "--prefer-ffmpeg",
+                    "--audio-format",
+                    "mp3",
+                    "--audio-quality",
+                    "0",
+                    "-o",
+                    "Music/%(title)s.%(ext)s",
+                    video
+                   ]
+        else:
+            args = [youtube_dl,
+                    "--no-post-overwrites",
+                    "-x",
+                    "--prefer-ffmpeg",
+                    "--audio-format",
+                    "mp3",
+                    "--audio-quality",
+                    "0",
+                    "-o",
+                    "Music/%(title)s.%(ext)s",
+                    video
+                   ]
+        subprocess.call(args)
+    except Exception as exp:
+        print "\n[ERROR] ", exp
 
 class DownloadPlaylist(tornado.web.RequestHandler):
-
-    def get(self,playlist_id):
+    """Download Playlist to MP3"""
+    def get(self, playlist_id):
+        """Download"""
         playlist = playlist_id if playlist_id else ''
-        if len(playlist) > 1 and re.match(VIDEO_REGEX,playlist):
-            DownloadPL(playlist)
+        if len(playlist) > 1 and re.match(VIDEO_REGEX, playlist):
+            download_playlist(playlist)
             self.write("Playlist Download Completed")
         else:
             self.write("Invalid Request")
 
 class DownloadFile(tornado.web.RequestHandler):
-
-    def get(self,video_id):
+    """Download File to MP3"""
+    def get(self, video_id):
+        """Download"""
         video = video_id if video_id else ''
-        if len(video) > 1 and re.match(VIDEO_REGEX,video):
-            DownloadVD(video)
+        if len(video) > 1 and re.match(VIDEO_REGEX, video):
+            download_mp3(video)
             self.write("MP3 Download Complete")
         else:
             self.write("Invalid Request")
 
-
-
 if __name__ == "__main__":
-    VIDEO_REGEX = "^([a-zA-Z0-9\_\-]+)$"
+    VIDEO_REGEX = r"^([a-zA-Z0-9\_\-]+)$"
     tornado.web.Application([
         (r"/playlist/(?P<playlist_id>[^\/]+)", DownloadPlaylist),
-        (r"/video/(?P<video_id>[^\/]+)",DownloadFile),
+        (r"/video/(?P<video_id>[^\/]+)", DownloadFile),
         ]).listen(8080)
-    #test update with a lower time period
-    tornado.ioloop.PeriodicCallback(UpdateYDL, 300000).start() #15 mins in milliseconds
+    tornado.ioloop.PeriodicCallback(update_youtube_dl, 300000).start() #15 mins in milliseconds
     tornado.ioloop.IOLoop.instance().start()
 
     '''

@@ -9,6 +9,4 @@ PLAYLIST_DIR = os.path.join(BASE, "Playlist/")
 MUSIC_DIR = os.path.join(BASE, "Music/")
 
 #Path to Binaries
-
-YOUTUBE_DL = 'youtube-dl'
 FFMPEG = ''

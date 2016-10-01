@@ -24,8 +24,8 @@ def update_youtube_dl():
 def download_playlist(playlist):
     """Download YouTube Playlist into MP3"""
     try:
+        youtube_dl = os.path.join(settings.BASE, "youtube-dl")
         if len(settings.FFMPEG) > 0:
-            youtube_dl = os.path.join(settings.BASE, "youtube-dl")
             args = [youtube_dl,
                     "--no-post-overwrites",
                     "-x",
